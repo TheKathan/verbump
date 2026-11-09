@@ -85,8 +85,9 @@ jobs:
         id: semver
         uses: TheKathan/trunk-semver@bdfa679941c534feeb98f967803cff48cdc3455e # v1.0.14
         with:
-          # only the step from previous-version to version is used, so the major is arbitrary
-          major-version: "1"
+          # v0 while in development. verbump uses only the step from previous-version to version,
+          # so this never caps a package's own version; release/<package>/1.0.0 cuts a 1.0.0.
+          major-version: "0"
 
       # --prune-tags also drops the vX.Y.Z (and vX) that trunk-semver created locally.
       - name: Point origin back at GitHub
@@ -104,7 +105,13 @@ jobs:
         run: |
           set -euo pipefail
           plan="$RUNNER_TEMP/plan.json"
-          $VERBUMP apply --previous "$PREVIOUS" --version-from "$NEXT" --release-branch "$SOURCE" --plan-out "$plan"
+          # trunk-semver leaves previous-version empty when HEAD already has a v tag
+          if [[ -n "$PREVIOUS" && -n "$NEXT" ]]; then
+            bump=(--previous "$PREVIOUS" --version-from "$NEXT")
+          else
+            bump=(--branch "$SOURCE")
+          fi
+          $VERBUMP apply "${bump[@]}" --release-branch "$SOURCE" --plan-out "$plan"
           $VERBUMP check
           echo "plan=$plan" >> "$GITHUB_OUTPUT"
           echo "count=$(jq '.releases | length' "$plan")" >> "$GITHUB_OUTPUT"

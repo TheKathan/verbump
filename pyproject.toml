@@ -1,7 +1,7 @@
 [project]
 name = "verbump"
 dynamic = ["version"]
-description = "Per-package version and changelog bumps for trunk-based repos and monorepos, driven by trunk-semver"
+description = "Version and changelog bumps for repos"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Gonçalo Faria" }]

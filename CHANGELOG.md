@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+- The release workflow runs trunk-semver with `major-version: "0"`, so its versions follow this repo's own v0 tags. When trunk-semver gives no previous version, the bump comes from the PR's branch name.
+- The description says what verbump is for: version and changelog bumps for repos, with one package or several.
+
 ## [0.1.0] - 2026-11-09
 
 ### Added

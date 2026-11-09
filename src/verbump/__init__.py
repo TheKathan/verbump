@@ -1,3 +1,3 @@
-"""verbump: per-package version and changelog bumps for trunk-based repos and monorepos."""
+"""verbump: version and changelog bumps for repos."""
 
 __version__ = "0.1.0"

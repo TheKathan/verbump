@@ -15,6 +15,12 @@ class SemverTest(unittest.TestCase):
         self.assertEqual(semver.bump_between("v1.0.0", "v1.1.0"), "minor")
         self.assertEqual(semver.bump_between("v1.4.2", "v1.4.3"), "patch")
         self.assertEqual(semver.bump_between("v1.4.2", "v2.0.0"), "major")
+
+    def test_bump_between_on_major_zero(self):
+        self.assertEqual(semver.bump_between("v0.0.0", "v0.1.0"), "minor")
+        self.assertEqual(semver.bump_between("v0.0.0", "v0.0.1"), "patch")
+        self.assertEqual(semver.bump_between("v0.1.0", "v0.2.0"), "minor")
+        self.assertEqual(semver.bump("0.9.0", "minor"), "0.10.0")
         with self.assertRaises(semver.VersionError):
             semver.bump_between("v1.1.0", "v1.1.0")
 

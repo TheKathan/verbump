@@ -1,15 +1,15 @@
 # verbump
 
-Version and changelog bumps for trunk-based repos and monorepos.
+Version and changelog bumps for repos.
 
-[trunk-semver](https://github.com/TheKathan/trunk-semver) decides *how much* to bump from the merged PR's branch name (`feature/*` → minor, anything else → patch). verbump decides *what* to bump. It finds the packages whose folders changed since each package's own last tag. For each one it writes the new version into its files, turns its changelog's "Unreleased" notes into a release section, and plans a `<package>/vX.Y.Z` tag and a GitHub release. Packages that didn't change stay where they are.
+A repo holds one package or several, each with its own version. You tell verbump *how much* to bump, with a flag, a branch name, or the outputs of a tool such as [trunk-semver](https://github.com/TheKathan/trunk-semver). verbump works out *what* to bump: the packages whose folders changed since each package's own last tag. For each one it writes the new version into its files, turns its changelog's "Unreleased" notes into a release section, and plans a `<package>/vX.Y.Z` tag and a GitHub release. Packages that didn't change stay where they are.
 
 Python 3.11+, standard library only.
 
 ## How it works
 
 ```
-merge PR feat/orders  ─►  trunk-semver: v1.0.0 → v1.1.0  ─►  bump = minor
+merge PR feat/orders  ─►  trunk-semver: v0.4.0 → v0.5.0  ─►  bump = minor
                                                                │
            verbump: which packages changed since their last tag?
              services/api   (api/v1.4.0..HEAD touches it)   → 1.5.0
