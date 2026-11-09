@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-09
+
 ### Added
 - Version files for more stacks, picked by file name: `composer.json`, `deno.json`, `jsr.json`, `manifest.json`, `setup.cfg`, `*.fsproj`, `*.vbproj`, `<VersionPrefix>`, `AssemblyInfo.cs`, `pom.xml` (the project version, not the parent's), `build.gradle`, `build.gradle.kts`, `gradle.properties`, `version.rb`, `*.gemspec`, `mix.exs`, `pubspec.yaml` and `Dockerfile` labels.
 - A file entry can name a `kind` (`json`, `toml`, `yaml`, `helm`, `plain`, `python`, `msbuild`, `assemblyinfo`, `maven`, `properties`, `gradle`, `ruby`, `elixir`, `dockerfile`) for any file name. It can also search only `after` a marker, and rewrite every match with `replace_all`. Kind `helm` moves `version` and `appVersion` together.
