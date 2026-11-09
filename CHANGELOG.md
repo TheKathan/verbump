@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+- The README recording renders on GitHub and PyPI: its alt text no longer contains `->`, which closed the image tag early.
+- GitHub no longer counts `assets/demo.tape` as a language.
+
 ## [1.0.0] - 2026-11-09
 
 The first stable release. `verbump.toml`, the commands and flags, and the plan JSON are public contracts from here on: within 1.x they only gain keys, flags and fields.

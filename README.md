@@ -14,7 +14,7 @@ verbump finds the packages in your repo that changed since their own last tag, w
 
 **Try it in one command:** `uvx --from verbump-cli verbump demo`
 
-<p align="center"><img alt="verbump in a repo with two packages. verbump status shows api at 1.4.0 with 0 changed files and web at 0.3.0 with 2 changed files. git log shows a commit feat(web): checkout page that touched apps/web. verbump apply --branch feat/checkout prints web: 0.3.0 -> 0.4.0 (minor, tag web/v0.4.0) and writes apps/web/package.json and apps/web/CHANGELOG.md. git diff shows the version going from 0.3.0 to 0.4.0, and verbump notes web prints the release notes: Added, Checkout page." src="https://raw.githubusercontent.com/TheKathan/verbump/main/assets/demo.gif" width="800"><br><sub>A PR from <code>feat/checkout</code> changed only <code>apps/web</code>: web gets a minor bump and its release notes, api stays at 1.4.0.</sub></p>
+<p align="center"><img alt="verbump in a repo with two packages. verbump status shows api at 1.4.0 with 0 changed files and web at 0.3.0 with 2 changed files. git log shows a commit, feat(web): checkout page, that touched apps/web. verbump apply --branch feat/checkout bumps web from 0.3.0 to 0.4.0, tag web/v0.4.0, and writes apps/web/package.json and apps/web/CHANGELOG.md. git diff shows the version going from 0.3.0 to 0.4.0, and verbump notes web prints the release notes: Added, Checkout page." src="https://raw.githubusercontent.com/TheKathan/verbump/main/assets/demo.gif" width="800"><br><sub>A PR from <code>feat/checkout</code> changed only <code>apps/web</code>: web gets a minor bump and its release notes, api stays at 1.4.0.</sub></p>
 
 ## Try it in 60 seconds
 
