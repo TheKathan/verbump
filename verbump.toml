@@ -1,0 +1,8 @@
+# verbump releases itself: one package at the repo root, tagged vX.Y.Z, with a moving vX tag.
+tag_format = "v{version}"
+major_tag = true
+
+[packages.verbump]
+path = "."
+files = ["src/verbump/__init__.py"]
+exclude = [".github/*"]

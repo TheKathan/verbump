@@ -1,0 +1,5 @@
+* @TheKathan
+
+# Workflows and the release config are security-sensitive.
+/.github/ @TheKathan
+/verbump.toml @TheKathan

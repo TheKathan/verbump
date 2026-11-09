@@ -1,0 +1,25 @@
+[project]
+name = "verbump"
+dynamic = ["version"]
+description = "Per-package version and changelog bumps for trunk-based repos and monorepos, driven by trunk-semver"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Gonçalo Faria" }]
+dependencies = []
+
+[project.urls]
+Source = "https://github.com/TheKathan/verbump"
+Changelog = "https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md"
+
+[project.scripts]
+verbump = "verbump.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "verbump.__version__" }

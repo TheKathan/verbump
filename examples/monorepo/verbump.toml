@@ -1,0 +1,19 @@
+# A monorepo with three services and a shared library.
+# Tags: api/v1.4.0, web/v0.3.0, worker/v2.1.0. Each service keeps its own CHANGELOG.md.
+tag_format = "{name}/v{version}"
+changelog = "CHANGELOG.md"
+
+[packages.api]
+path = "services/api"
+files = ["pyproject.toml", "src/api/__init__.py"]
+watch = ["libs/shared"]          # a change to the shared library releases api too
+exclude = ["*.md", "docs/*"]     # a docs-only change doesn't
+
+[packages.web]
+path = "apps/web"
+files = ["package.json"]
+
+[packages.worker]
+path = "services/worker"
+files = ["Worker.csproj", { path = "deploy/values.yaml", pattern = 'imageTag:\s*"(?P<version>\d+\.\d+\.\d+)"' }]
+watch = ["libs/shared"]

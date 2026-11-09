@@ -1,0 +1,160 @@
+name: release
+
+# Every PR merged into main releases the packages it changed (verbump.toml). trunk-semver
+# reads the merged PR's source branch and picks the bump:
+#   feature/* or feat/*      -> minor
+#   anything else            -> patch
+#   release/X.Y.Z            -> exactly X.Y.Z (release/<package>/X.Y.Z in a monorepo)
+# verbump applies that bump to each changed package from its own last tag, writes the
+# version files and the changelog, and the job tags and publishes a GitHub release per package.
+# This repo releases itself the same way, running verbump from its own source.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  VERBUMP: python3 -m verbump
+  PYTHONPATH: src
+
+jobs:
+  test:
+    # the bot's own version commit must not release again
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Test
+        run: make test
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      tags: ${{ steps.publish.outputs.tags }}
+    steps:
+      # With a RELEASE_DEPLOY_KEY secret (a write deploy key), pushes go through rulesets
+      # that only let the key bypass PRs; without it, the job token pushes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Source branch of the merged PR
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          src=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '.[0].head.ref // ""')
+          echo "branch=$src" >> "$GITHUB_OUTPUT"
+          echo "PR source branch: ${src:-(none, direct push)}"
+
+      # trunk-semver tags and pushes a repo-wide vX.Y.Z. Only its bump is wanted, so it
+      # runs against a local mirror and its tags never reach GitHub.
+      - name: Keep trunk-semver's tags in a local sandbox
+        run: |
+          set -euo pipefail
+          echo "ORIGIN_URL=$(git remote get-url origin)" >> "$GITHUB_ENV"
+          git clone --quiet --mirror . "$RUNNER_TEMP/tag-sandbox.git"
+          git remote set-url origin "$RUNNER_TEMP/tag-sandbox.git"
+
+      - name: Bump from trunk-semver
+        id: semver
+        uses: TheKathan/trunk-semver@bdfa679941c534feeb98f967803cff48cdc3455e # v1.0.14
+        with:
+          # only the step from previous-version to version is used, so the major is arbitrary
+          major-version: "1"
+
+      # --prune-tags also drops the vX.Y.Z (and vX) that trunk-semver created locally.
+      - name: Point origin back at GitHub
+        if: always()
+        run: |
+          git remote set-url origin "$ORIGIN_URL"
+          git fetch --quiet --prune --prune-tags --tags --force origin
+
+      - name: Write versions and changelogs
+        id: apply
+        env:
+          PREVIOUS: ${{ steps.semver.outputs.previous-version }}
+          NEXT: ${{ steps.semver.outputs.version }}
+          SOURCE: ${{ steps.source.outputs.branch }}
+        run: |
+          set -euo pipefail
+          plan="$RUNNER_TEMP/plan.json"
+          $VERBUMP apply --previous "$PREVIOUS" --version-from "$NEXT" --release-branch "$SOURCE" --plan-out "$plan"
+          $VERBUMP check
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq '.releases | length' "$plan")" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Release plan"
+            echo
+            echo "trunk-semver: \`$PREVIOUS\` → \`$NEXT\` ($(jq -r .bump "$plan")), source branch \`${SOURCE:-none}\`"
+            echo
+            echo "| Package | Previous | Version | Tag | Why |"
+            echo "|---|---|---|---|---|"
+            jq -r '.releases[] | "| \(.name) | \(.previous // "-") | \(.version) | `\(.tag)` | \(.reason) |"' "$plan"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit, tag and push
+        if: steps.apply.outputs.count != '0'
+        env:
+          PLAN: ${{ steps.apply.outputs.plan }}
+        run: |
+          set -euo pipefail
+          for tag in $(jq -r '.releases[].tag' "$PLAN"); do
+            if [[ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]]; then
+              echo "::error::tag $tag already exists on GitHub; exact version tags are never moved"; exit 1
+            fi
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "files already at the planned versions"
+          else
+            git commit -m "$(jq -r .commit_message "$PLAN")"
+            git push origin HEAD:main
+          fi
+          $VERBUMP tag --plan "$PLAN"
+          for tag in $(jq -r '.releases[].tag' "$PLAN"); do git push origin "refs/tags/$tag"; done
+          for tag in $(jq -r '.releases[].major_tag // empty' "$PLAN"); do git push --force origin "refs/tags/$tag"; done
+
+      - name: Publish the GitHub releases
+        id: publish
+        if: steps.apply.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLAN: ${{ steps.apply.outputs.plan }}
+        run: |
+          set -euo pipefail
+          jq -r '.releases[] | "\(.name)\t\(.version)\t\(.tag)"' "$PLAN" | while IFS=$'\t' read -r name version tag; do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "release $tag already exists"; continue
+            fi
+            $VERBUMP notes "$name" "$version" > "$RUNNER_TEMP/notes.md"
+            gh release create "$tag" --title "$name $version" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          done
+          echo "tags=$(jq -c '[.releases[].tag]' "$PLAN")" >> "$GITHUB_OUTPUT"
