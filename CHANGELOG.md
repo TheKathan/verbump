@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
 ### Added
 - `verbump.toml` declares packages: a path, the files that carry its version, extra `watch` paths and `exclude` globs, and its tag format (`{name}/v{version}` by default).
 - `verbump plan` and `verbump apply` release every package whose files changed since its last tag. The bump comes from `--bump`, from trunk-semver's outputs (`--previous` and `--version-from`), or from a branch name. `--exact NAME=X.Y.Z` and `--release-branch release/<name>/X.Y.Z` set an exact version.
