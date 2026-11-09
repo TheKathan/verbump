@@ -1,10 +1,59 @@
 # verbump
 
+[![test](https://github.com/TheKathan/verbump/actions/workflows/test.yml/badge.svg)](https://github.com/TheKathan/verbump/actions/workflows/test.yml)
+[![PyPI](https://img.shields.io/pypi/v/verbump-cli)](https://pypi.org/project/verbump-cli/)
+[![Python](https://img.shields.io/pypi/pyversions/verbump-cli)](https://pypi.org/project/verbump-cli/)
+[![license: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://github.com/TheKathan/verbump/blob/main/LICENSE)
+
 Version and changelog bumps for repos.
 
-A repo holds one package or several, each with its own version. You tell verbump *how much* to bump, with a flag, a branch name, or the outputs of a tool such as [trunk-semver](https://github.com/TheKathan/trunk-semver). verbump works out *what* to bump: the packages whose folders changed since each package's own last tag. For each one it writes the new version into its files, turns its changelog's "Unreleased" notes into a release section, and plans a `<package>/vX.Y.Z` tag and a GitHub release. Packages that didn't change stay where they are.
+verbump releases the packages in your repo that changed. It finds each package's changes since that package's own last tag, writes the new version into the package's version files, and turns its changelog's `## [Unreleased]` notes into a version section. It then plans the git tags and GitHub releases. It works with one package or many, on any stack, and needs only Python 3.11+.
 
-Python 3.11+, standard library only.
+Why use it: every package gets its own version and its own changelog, taken from your normal git history. Nobody edits version numbers by hand, and packages that didn't change stay where they are.
+
+verbump does not decide how big a bump is. You pass that in with a flag, a branch name, or the outputs of a tool such as [trunk-semver](https://github.com/TheKathan/trunk-semver).
+
+## Quick start
+
+Install it. The PyPI package is `verbump-cli`, because the name `verbump` belongs to an unrelated project. The command it installs is `verbump`.
+
+```bash
+pipx install verbump-cli        # or: uv tool install verbump-cli, pip install verbump-cli
+verbump --version
+```
+
+Declare your packages in `verbump.toml` at the repo root. `verbump init` writes a starter file. A minimal one looks like this:
+
+```toml
+tag_format = "{name}/v{version}"
+
+[packages.api]
+path = "services/api"
+files = ["pyproject.toml", "src/api/__init__.py"]
+
+[packages.web]
+path = "apps/web"
+files = ["package.json"]
+```
+
+See what would release. Here a commit changed `services/api` since its last tag `api/v1.4.0`, and nothing changed in `apps/web`:
+
+```console
+$ verbump plan --bump minor
+api: 1.4.0 -> 1.5.0 (minor, tag api/v1.5.0)
+```
+
+Write the new versions and changelogs. `apply` changes files only. It does not commit or tag.
+
+```console
+$ verbump apply --bump minor --plan-out plan.json
+api: 1.4.0 -> 1.5.0 (minor, tag api/v1.5.0)
+  wrote services/api/pyproject.toml
+  wrote services/api/src/api/__init__.py
+  wrote services/api/CHANGELOG.md
+```
+
+The `wrote` lines go to stderr. Commit the changes, then `verbump tag --plan plan.json` creates the tags. For a full CI recipe, see [Using it in CI](#using-it-in-ci).
 
 ## How it works
 
@@ -20,15 +69,18 @@ merge PR feat/orders  ─►  trunk-semver: v0.4.0 → v0.5.0  ─►  bump = mi
    commit "chore(release): api 1.5.0" → tag api/v1.5.0 → GitHub release "api 1.5.0"
 ```
 
-- **Version source.** Each package's version files are the source of truth. If the files and the last tag disagree, verbump bumps from the higher of the two.
+The bump can come from trunk-semver, as drawn, or from `--bump` or a branch name. The commit, tag and release steps are your CI's job; verbump plans them and writes the files.
+
+- **What counts as a change.** A package changed if any file under its `path` or its `watch` paths changed since the package's last tag, other than files that match `exclude`. A package with no tag yet counts every tracked file under those paths.
+- **Version source.** Each package's version files are the source of truth. If the files and the last tag disagree, verbump bumps from the higher of the two. If a package's version files disagree with each other, verbump stops with an error.
 - **First release.** A package with no tag yet is released at the version its files already have. A package with no version files starts from `initial_version` (`0.0.0`) and is bumped.
-- **Changelog.** The notes under `## [Unreleased]` become `## [X.Y.Z] - <date>`. If nobody wrote notes, the section lists the subjects of the commits that touched the package since its last tag, leaving out `chore(release)` and merge commits. A missing `CHANGELOG.md` is created.
-- **Exact versions.** A PR from `release/<package>/X.Y.Z` releases that package at exactly X.Y.Z. In a single-package repo, `release/X.Y.Z` is enough. Use this for a new major, which bumps can't reach.
-- **Safe to re-run.** Tags point at the release commit, so a second run finds nothing new to release. An existing tag is never moved; only the optional major tag (`vX`) is.
+- **Changelog.** The notes under `## [Unreleased]` become `## [X.Y.Z] - <date>`. If nobody wrote notes, the section lists the subjects of the commits that touched the package since its last tag, leaving out `chore(release)` and merge commits. A missing `CHANGELOG.md` is created. A section for that version that already exists is left alone.
+- **Exact versions.** A PR from `release/<package>/X.Y.Z` releases that package at exactly X.Y.Z, changed or not. In a single-package repo, `release/X.Y.Z` is enough. Use this for a new major, which bumps can't reach. An exact version must be newer than the package's last release.
+- **Safe to re-run.** Tags point at the release commit, so a second run finds nothing new to release. If the planned tag already exists, verbump stops instead of moving it. Only the optional major tag (`vX`) is moved.
 
-## Configure
+## Configuration
 
-`verbump.toml` at the repo root:
+`verbump.toml` at the repo root. Use `-c <file>` for another path.
 
 ```toml
 tag_format = "{name}/v{version}"   # default for every package
@@ -45,81 +97,165 @@ path = "apps/web"
 files = ["package.json"]
 ```
 
-Files are relative to the package `path`. These files are recognised by name:
+Package names use letters, digits, `.`, `_` and `-`. verbump rejects unknown keys.
 
-| File | Matches |
+### Keys
+
+`tag_format`, `changelog` and `major_tag` can be set at the top level as defaults for every package, and again per package.
+
+| Key | Where | Default | Meaning |
+|---|---|---|---|
+| `tag_format` | top level, package | `{name}/v{version}` | Tag name. Uses `{name}`, `{path}` and `{version}`; `{version}` appears exactly once. `{path}` can't be used at the repo root. Two packages can't share a tag. |
+| `changelog` | top level, package | `CHANGELOG.md` | Changelog file, relative to the package `path`. `""` turns it off. |
+| `major_tag` | top level, package | `false` | Also move a major tag, such as `api/v1`, on each release. |
+| `commit_message` | top level | `chore(release): {releases}` | Commit message in the plan. `{releases}` becomes `api 1.5.0, web 0.3.1`. |
+| `path` | package | `.` | The package folder, relative to the repo root. It must stay inside the repo. |
+| `files` | package | none | Files that carry the version, relative to `path`. See [Supported files](#supported-files). |
+| `watch` | package | none | Other repo paths whose changes also release this package. |
+| `exclude` | package | none | Glob patterns. Changes only to matching files don't release the package. Patterns match the repo path or the path relative to the package. |
+| `initial_version` | package | `0.0.0` | Where a package with no tag and no version files starts. |
+
+For a single-package repo, use `tag_format = "v{version}"` and one package at `path = "."`. This repo's own [`verbump.toml`](https://github.com/TheKathan/verbump/blob/main/verbump.toml) is an example. [`examples/monorepo/verbump.toml`](https://github.com/TheKathan/verbump/blob/main/examples/monorepo/verbump.toml) is a monorepo with Python, Node, .NET, Maven, Go and Helm packages.
+
+### Files as tables
+
+A file can be a table, to pick a kind for any file name or to give your own pattern:
+
+```toml
+files = [
+  { path = "chart/Chart.yaml", kind = "helm" },                  # a kind for any file name
+  { path = "deploy/values.yaml",                                  # or your own pattern
+    pattern = 'tag:\s*"(?P<version>\d+\.\d+\.\d+)"',
+    after = "image:",                                             # search only after this text
+    replace_all = true },                                         # rewrite every match, not just the first
+]
+```
+
+| Key | Meaning |
 |---|---|
-| `pyproject.toml`, `Cargo.toml` | `version = "X.Y.Z"` |
-| `package.json` | `"version": "X.Y.Z"` |
-| `Chart.yaml` | `version: X.Y.Z` |
-| `VERSION` | the whole file |
-| `*.py` | `__version__ = "X.Y.Z"` |
-| `*.csproj`, `*.props` | `<Version>X.Y.Z</Version>` |
+| `path` | The file, relative to the package `path`. Required. |
+| `kind` | A built-in matcher: `json`, `toml`, `yaml`, `helm`, `plain`, `python`, `msbuild`, `assemblyinfo`, `maven`, `properties`, `gradle`, `ruby`, `elixir` or `dockerfile`. |
+| `pattern` | Your own regex. It needs a `(?P<version>...)` group. It wins over `kind`. |
+| `after` | Search only after the first occurrence of this text. |
+| `replace_all` | Rewrite every match. By default only the first match is rewritten, and when there are several matches the first is read. |
 
-Any other file takes a regex with a `version` group, for example `{ path = "deploy/values.yaml", pattern = 'imageTag:\s*"(?P<version>\d+\.\d+\.\d+)"' }`. Only the first match is rewritten.
+## Supported files
 
-Other keys, per package or at the top level: `major_tag = true` also moves a `<name>/vX` tag, which is useful for GitHub Actions published from a monorepo. `commit_message` (top level) defaults to `"chore(release): {releases}"`.
+verbump picks the kind of a file from its name, so most configs only list paths. Any other file needs a `kind` or a `pattern`.
 
-For a single-package repo, use `tag_format = "v{version}"` and one package at `path = "."`. This repo's own [`verbump.toml`](verbump.toml) is an example of that, and [`examples/monorepo/verbump.toml`](examples/monorepo/verbump.toml) is a monorepo example.
+| Stack | Files | Matches |
+|---|---|---|
+| Node, PHP, Deno | `package.json`, `composer.json`, `deno.json`, `jsr.json`, `manifest.json` | `"version": "X.Y.Z"` |
+| Python | `pyproject.toml` | `version = "X.Y.Z"` at the start of a line |
+| Python | `setup.cfg` | `version = X.Y.Z` |
+| Python | `*.py` | `__version__ = "X.Y.Z"` |
+| Rust | `Cargo.toml` | `version = "X.Y.Z"` at the start of a line |
+| .NET | `*.csproj`, `*.fsproj`, `*.vbproj`, `*.props` | `<Version>` or `<VersionPrefix>` |
+| .NET | `AssemblyInfo.cs` | every `Assembly[File\|Informational]Version("X.Y.Z...")` |
+| Java, Kotlin | `pom.xml` | the project's `<version>`, after `</parent>` when there is one |
+| Java, Kotlin | `build.gradle`, `build.gradle.kts` | `version = "X.Y.Z"` or `version 'X.Y.Z'` |
+| Java, Kotlin | `gradle.properties` | `version=X.Y.Z` |
+| Ruby | `version.rb`, `*.gemspec` | `VERSION = "X.Y.Z"`, `.version = "X.Y.Z"` |
+| Elixir | `mix.exs` | `version: "X.Y.Z"` |
+| Dart, Flutter | `pubspec.yaml` | `version: X.Y.Z` (a `+build` suffix is kept) |
+| Helm | `Chart.yaml` | `version: X.Y.Z`. Set `kind = "helm"` to move `appVersion` too. |
+| Docker | `Dockerfile` | `LABEL ... version="X.Y.Z"` |
+| Any | `VERSION`, `VERSION.txt`, `version.txt`, `.version` | the whole file |
+| Go, Swift, ... | no file | the version lives only in the tags; use `tag_format = "{path}/v{version}"` for Go modules |
+
+A `v` prefix is read in `Chart.yaml` with `kind = "helm"` and in plain version files. Versions are always `X.Y.Z`.
 
 ## Commands
 
 ```
-verbump status                                     packages, file versions, last tags, pending changes
-verbump plan  --previous v1.0.0 --version-from v1.1.0   what would release (trunk-semver's outputs)
-verbump apply --bump minor --plan-out plan.json    write versions and changelogs, save the plan
-verbump tag   --plan plan.json                     create the planned tags (and major tags)
-verbump notes <package> [<version>]                a version's changelog section, for a release body
-verbump set   <package> <version>                  write an exact version into one package
-verbump check                                      exit 1 if a package's version files disagree
-verbump init                                       write a starter verbump.toml
+verbump [-C ROOT] [-c CONFIG] <command>
 ```
 
-`plan` and `apply` get the bump from one of these sources:
-- `--bump major|minor|patch`;
-- `--previous` and `--version-from`, trunk-semver's `previous-version` and `version` outputs, from which verbump works out the bump;
-- `--branch <name>`, which applies trunk-semver's branch rule without trunk-semver;
-- nothing, which means a patch.
+| Command | What it does |
+|---|---|
+| `status [--json]` | Lists each package with its file version, last tag and number of changed files. |
+| `plan [options]` | Shows what would release. Changes nothing. |
+| `apply [options] [--date YYYY-MM-DD]` | Writes versions and changelogs, and prints the plan. Doesn't commit or tag. `--date` defaults to today, UTC. |
+| `tag --plan FILE` | Creates the annotated tags in a saved plan, and moves its major tags. Doesn't push. |
+| `notes <package> [<version>]` | Prints a version's changelog section, for a release body. Without a version, it uses the package's file version. |
+| `set <package> <version> [--date D]` | Writes an exact version into one package's files and changelog. |
+| `check` | Prints each package's file version. Exits 1 if a package's version files disagree. |
+| `init` | Writes a starter `verbump.toml`. It won't overwrite an existing one. |
 
-Further options:
-- `--release-branch <branch>` and `--exact NAME=X.Y.Z` force an exact version.
-- `--only NAME` limits the run to some packages.
-- `--json` prints the plan.
+Global options: `-C <repo root>` (default `.`) and `-c <config file>` (default `<root>/verbump.toml`).
 
-Global options: `-C <repo root>` and `-c <config file>`.
+### Choosing the bump
+
+`plan` and `apply` take the bump from one of these sources:
+
+- `--bump major|minor|patch`.
+- `--previous` and `--version-from`, which are trunk-semver's `previous-version` and `version` outputs. verbump works out the bump from the two. They go together.
+- `--branch <name>`, which applies trunk-semver's branch rule without trunk-semver.
+- Nothing, which means a patch.
+
+`--bump` and `--branch` can't be combined. If you pass several sources, `--bump` wins, then `--previous` with `--version-from`, then `--branch`.
+
+### Other options for `plan` and `apply`
+
+| Option | Meaning |
+|---|---|
+| `--exact NAME=X.Y.Z` | Release a package at exactly this version, changed or not. Repeatable. |
+| `--release-branch <branch>` | If the branch is `release/<package>/X.Y.Z` (or `release/X.Y.Z` with one package), it sets `--exact`. Other branches are ignored. |
+| `--only NAME` | Limit the run to this package. Repeatable. |
+| `--json` | Print the plan as JSON instead of text. |
+| `--plan-out FILE` | Also write the plan as JSON to this file. |
+
+### Output
+
+`plan` and `apply` print one line per release, as `name: previous -> new (reason, tag T)`. The previous version is `-` for a package with no tag. With nothing to release they print `nothing to release`. The reason is the bump, `first release` or `exact`.
 
 The plan JSON has the shape `{"bump", "commit_message", "releases": [{"name", "path", "previous", "version", "tag", "major_tag", "changelog", "reason", "changed"}]}`.
 
-## Use it in a workflow
+## Using it in CI
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) is the whole pipeline, and this repo releases itself with it. It runs in this order:
-1. Run the tests, skipping the bot's own `chore(release)` commit.
-2. Find the merged PR's source branch.
-3. Run trunk-semver against a local mirror, so its repo-wide `vX.Y.Z` tag never reaches GitHub. Only the bump it computes is used.
-4. Run `verbump apply` with trunk-semver's `previous-version` and `version` and the source branch, then `verbump check`.
-5. Commit, then `verbump tag`, and push the commit and tags. The job refuses to overwrite an existing tag on GitHub.
-6. Run `gh release create` for each package, with `verbump notes` as the body.
+In GitHub Actions, use [TheKathan/verbump-action](https://github.com/TheKathan/verbump-action). It installs `verbump-cli` from PyPI, then:
 
-To use it in another repo, copy the workflow and add a `verbump.toml`. Then replace the `env` block, which runs verbump from this repo's source, with an install step. This repo is private, so the install needs a token with read access to it:
+1. applies the bump;
+2. commits, tags and pushes;
+3. publishes a GitHub release per package.
 
-```yaml
-env:
-  VERBUMP: verbump
+It takes the bump as an input, from any source (trunk-semver, a branch name or a fixed value). It doesn't run trunk-semver itself.
 
-# in the release job, after setup-python:
-      - name: Install verbump
-        run: python3 -m pip install "git+https://x-access-token:${{ secrets.VERBUMP_READ_TOKEN }}@github.com/TheKathan/verbump@v0"
+Anywhere else, the CLI does the same work. This recipe takes the bump from the merged PR's branch name:
+
+```bash
+verbump apply --branch "$PR_BRANCH" --release-branch "$PR_BRANCH" --plan-out plan.json
+verbump check
+git commit -am "$(jq -r .commit_message plan.json)"
+verbump tag --plan plan.json
+git push origin HEAD:main --follow-tags
 ```
 
-`@v0` follows the latest 0.x release. To pin one, use `@v0.1.0`.
+`--follow-tags` pushes the annotated tags. Major tags are lightweight and moved, so push them yourself, for example with `git push --force origin <major_tag>`. To create a GitHub release for each package, loop over the plan and use `verbump notes <name> <version>` as the release body.
 
-If `main` has a ruleset that requires PRs, add a write deploy key as the `RELEASE_DEPLOY_KEY` secret and let only that key bypass the ruleset, as baton does. Without the secret, the job's token pushes.
+This repo releases itself with [`.github/workflows/release.yml`](https://github.com/TheKathan/verbump/blob/main/.github/workflows/release.yml), running verbump from its own source. It runs in this order:
 
-## Develop
+1. Run trunk-semver against a local mirror, so its repo-wide tag never reaches GitHub, and take the bump from its `previous-version` and `version`. When it gives no previous version, use the PR's branch name.
+2. Run `verbump apply` and `verbump check`.
+3. Commit, tag and push.
+4. Publish the GitHub release.
+5. Build the sdist and the wheel.
+6. Upload them to PyPI, when the `PUBLISH_PYPI` variable is `true`.
 
-```
+## Development
+
+```bash
 make test    # unit tests and end-to-end tests against throwaway git repos
 make lint    # ruff
 ```
 
-The branch name picks the release: `feature/…` gives a minor version, anything else a patch, and `release/X.Y.Z` an exact version. Add notes under `## [Unreleased]` in `CHANGELOG.md`.
+The branch name picks the release: `feature/...` or `feat/...` gives a minor version, anything else a patch, and `release/X.Y.Z` an exact version. Add notes under `## [Unreleased]` in [`CHANGELOG.md`](https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md).
+
+`main` takes changes only through PRs:
+- A PR needs a code-owner review, and the test and build checks must pass.
+- Only the release workflow pushes to `main` directly. It pushes the version commit and the `v*` tags with a deploy key, the only actor the rulesets let through.
+- Its environments, `release` and `pypi`, can be used only from `main`.
+
+## License
+
+[MIT](https://github.com/TheKathan/verbump/blob/main/LICENSE)

@@ -5,7 +5,7 @@
 
     [packages.api]
     path = "services/api"
-    files = ["pyproject.toml", { path = "src/api/version.txt", pattern = '...(?P<version>...)' }]
+    files = ["pyproject.toml", { path = "deploy/values.yaml", pattern = 'tag: "(?P<version>[0-9.]+)"' }]
     watch = ["libs/shared"]               # more repo paths whose changes release this package
     exclude = ["*.md", "docs/**"]         # changes here alone don't release it
 """
@@ -16,12 +16,13 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from verbump.files import VersionFile, default_pattern
+from verbump.files import VersionFile, version_file
 
 DEFAULT_TAG_FORMAT = "{name}/v{version}"
 DEFAULT_COMMIT = "chore(release): {releases}"
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 PACKAGE_KEYS = {"path", "files", "watch", "exclude", "tag_format", "changelog", "major_tag", "initial_version"}
+FILE_KEYS = {"path", "kind", "pattern", "after", "replace_all"}
 TOP_KEYS = {"tag_format", "changelog", "commit_message", "major_tag", "packages"}
 
 
@@ -53,7 +54,7 @@ class Package:
         return [self.path, *self.watch]
 
     def tag(self, version: str) -> str:
-        return self.tag_format.format(name=self.name, version=version)
+        return self.tag_format.format(name=self.name, path=self.path, version=version)
 
     def major_tag_name(self, version: str) -> str:
         return self.tag(version).rsplit(version, 1)[0] + version.split(".")[0]
@@ -61,8 +62,8 @@ class Package:
     def tag_regex(self) -> re.Pattern:
         head, _, tail = self.tag_format.partition("{version}")
         return re.compile(
-            "^" + re.escape(head.format(name=self.name)) + r"(?P<version>\d+\.\d+\.\d+)"
-            + re.escape(tail.format(name=self.name)) + "$"
+            "^" + re.escape(head.format(name=self.name, path=self.path)) + r"(?P<version>\d+\.\d+\.\d+)"
+            + re.escape(tail.format(name=self.name, path=self.path)) + "$"
         )
 
 
@@ -113,15 +114,25 @@ def _package(name: str, spec: dict) -> Package:
     tag_format = spec.get("tag_format", DEFAULT_TAG_FORMAT)
     if tag_format.count("{version}") != 1:
         raise ConfigError(f"[packages.{name}]: tag_format needs exactly one {{version}}")
+    try:
+        tag_format.format(name=name, path=path, version="0.0.0")
+    except (KeyError, IndexError, ValueError) as e:
+        raise ConfigError(f"[packages.{name}]: tag_format may use only {{name}}, {{path}} and {{version}}") from e
+    if "{path}" in tag_format and path == ".":
+        raise ConfigError(f"[packages.{name}]: a package at the repo root can't use {{path}} in tag_format")
     files = []
     for f in spec.get("files", []):
         if isinstance(f, str):
             f = {"path": f}
         if not isinstance(f, dict) or "path" not in f:
-            raise ConfigError(f"[packages.{name}]: each file is a path or {{ path, pattern }}")
+            raise ConfigError(f"[packages.{name}]: each file is a path or {{ path, kind | pattern, ... }}")
+        if unknown := set(f) - FILE_KEYS:
+            raise ConfigError(f"[packages.{name}] file {f['path']}: unknown keys {', '.join(sorted(unknown))}")
         rel = posixpath.normpath(posixpath.join(path, f["path"]))
         try:
-            files.append(VersionFile(rel, f.get("pattern") or default_pattern(rel)))
+            vf = version_file(rel, f.get("kind"), f.get("pattern"), f.get("after"), f.get("replace_all"))
+            vf.regex()
+            files.append(vf)
         except ValueError as e:
             raise ConfigError(f"[packages.{name}]: {e}") from e
     changelog = spec.get("changelog", "CHANGELOG.md")
