@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-09
+
 ### Fixed
 - The README recording renders on GitHub and PyPI: its alt text no longer contains `->`, which closed the image tag early.
 - GitHub no longer counts `assets/demo.tape` as a language.
