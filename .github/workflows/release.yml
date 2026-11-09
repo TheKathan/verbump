@@ -46,6 +46,8 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    # RELEASE_DEPLOY_KEY lives in this environment, which only main may use
+    environment: release
     permissions:
       contents: write
       pull-requests: read
@@ -53,8 +55,8 @@ jobs:
       tags: ${{ steps.publish.outputs.tags }}
       tag: ${{ steps.publish.outputs.tag }}
     steps:
-      # With a RELEASE_DEPLOY_KEY secret (a write deploy key), pushes go through rulesets
-      # that only let the key bypass PRs; without it, the job token pushes.
+      # Pushes (the version commit and the tags) go through the deploy key, the only actor
+      # the rulesets on main and on v* tags let through without a PR.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

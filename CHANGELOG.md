@@ -9,6 +9,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - A file entry can name a `kind` (`json`, `toml`, `yaml`, `helm`, `plain`, `python`, `msbuild`, `assemblyinfo`, `maven`, `properties`, `gradle`, `ruby`, `elixir`, `dockerfile`) for any file name. It can also search only `after` a marker, and rewrite every match with `replace_all`. Kind `helm` moves `version` and `appVersion` together.
 - `tag_format` can use `{path}`, for Go-style module tags such as `services/billing/v1.2.3`.
 - Published on PyPI as `verbump-cli` (the command is `verbump`): `pipx install verbump-cli`. The release workflow builds the sdist and the wheel for every release and uploads them when the `PUBLISH_PYPI` variable is `true`. PRs build the package, install the wheel and run it.
+- The README is rewritten: a quick start, a configuration reference, the supported files by stack, a command reference and CI recipes.
+- The MIT license.
 - The GitHub Action lives in its own repo, [TheKathan/verbump-action](https://github.com/TheKathan/verbump-action).
 
 ## [0.1.1] - 2026-11-09
