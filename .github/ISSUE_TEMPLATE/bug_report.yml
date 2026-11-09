@@ -1,0 +1,74 @@
+name: Bug report
+description: verbump did something wrong or unexpected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Remove secrets and private data from anything you paste.
+        For a security problem, use [private vulnerability reporting](https://github.com/TheKathan/verbump/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The command you ran and what it printed.
+      render: console
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Your verbump.toml
+      description: The relevant packages, and the version file that misbehaved (just the lines around the version).
+      render: toml
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of commands that shows the problem. `verbump demo --dir ./repro --setup-only` gives you a small repo to start from.
+      placeholder: |
+        verbump status
+        verbump plan --branch feat/x
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: verbump version
+      description: The output of `verbump --version`.
+      placeholder: verbump 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: How you ran it
+      options:
+        - verbump command
+        - GitHub Action (TheKathan/verbump-action)
+        - Other CI
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: The output of `python3 --version`.

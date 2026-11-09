@@ -8,6 +8,7 @@
   verbump set   <package> <version>            write an exact version into one package
   verbump check                                exit 1 if a package's version files disagree
   verbump init                                 write a starter verbump.toml
+  verbump demo                                 a narrated release in a throwaway repo
 """
 
 import argparse
@@ -92,6 +93,11 @@ def parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("init", help="write a starter verbump.toml")
     s.set_defaults(func=cmd_init)
+
+    s = sub.add_parser("demo", help="a narrated release in a throwaway repo")
+    s.add_argument("--dir", type=Path, help="build the demo repo here and keep it (an empty or new folder)")
+    s.add_argument("--setup-only", action="store_true", help="only build the demo repo and print its path")
+    s.set_defaults(func=cmd_demo)
     return p
 
 
@@ -208,9 +214,11 @@ def cmd_status(args) -> int:
     if args.json:
         print(json.dumps(rows, indent=2))
     else:
-        for r in rows:
-            print(f"{r['name']:<20} {r['path']:<28} {r['version'] or '-':<10} {r['last_tag'] or '(none)':<24} "
-                  f"{r['changed']} changed")
+        table = [(r["name"], r["path"], r["version"] or "-", r["last_tag"] or "(no tag)", f"{r['changed']} changed")
+                 for r in rows]
+        widths = [max(len(row[i]) for row in table) for i in range(4)]
+        for row in table:
+            print("  ".join(cell.ljust(w) for cell, w in zip(row[:4], widths, strict=True)) + "  " + row[4])
     return 0
 
 
@@ -221,3 +229,9 @@ def cmd_init(args) -> int:
     path.write_text(STARTER)
     print(f"wrote {path}")
     return 0
+
+
+def cmd_demo(args) -> int:
+    from verbump import demo
+
+    return demo.main(keep=args.dir, setup_only=args.setup_only)

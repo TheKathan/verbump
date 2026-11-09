@@ -1,17 +1,52 @@
-# verbump
+<h1 align="center">verbump</h1>
 
-[![test](https://github.com/TheKathan/verbump/actions/workflows/test.yml/badge.svg)](https://github.com/TheKathan/verbump/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/verbump-cli)](https://pypi.org/project/verbump-cli/)
-[![Python](https://img.shields.io/pypi/pyversions/verbump-cli)](https://pypi.org/project/verbump-cli/)
-[![license: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://github.com/TheKathan/verbump/blob/main/LICENSE)
+<p align="center">
+  <a href="https://github.com/TheKathan/verbump/actions/workflows/test.yml"><img alt="tests" src="https://github.com/TheKathan/verbump/actions/workflows/test.yml/badge.svg"></a>
+  <a href="https://pypi.org/project/verbump-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/verbump-cli"></a>
+  <img alt="license" src="https://img.shields.io/github/license/TheKathan/verbump">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB">
+  <img alt="dependencies: none" src="https://img.shields.io/badge/dependencies-none-brightgreen">
+</p>
 
-Version and changelog bumps for repos.
+**Version and changelog bumps for repos: only the packages that changed move.**
 
-verbump releases the packages in your repo that changed. It finds each package's changes since that package's own last tag, writes the new version into the package's version files, and turns its changelog's `## [Unreleased]` notes into a version section. It then plans the git tags and GitHub releases. It works with one package or many, on any stack, and needs only Python 3.11+.
+verbump finds the packages in your repo that changed since their own last tag, writes each one's new version into its files, and turns its changelog's `## [Unreleased]` notes into the release. One package or fifty, Python, Node, .NET, Java, Rust, Go or anything with a version in a file. One CLI, one `verbump.toml`, no dependencies.
 
-Why use it: every package gets its own version and its own changelog, taken from your normal git history. Nobody edits version numbers by hand, and packages that didn't change stay where they are.
+**Try it in one command:** `uvx --from verbump-cli verbump demo`
 
-verbump does not decide how big a bump is. You pass that in with a flag, a branch name, or the outputs of a tool such as [trunk-semver](https://github.com/TheKathan/trunk-semver).
+<p align="center"><img alt="verbump in a repo with two packages. verbump status shows api at 1.4.0 with 0 changed files and web at 0.3.0 with 2 changed files. git log shows a commit feat(web): checkout page that touched apps/web. verbump apply --branch feat/checkout prints web: 0.3.0 -> 0.4.0 (minor, tag web/v0.4.0) and writes apps/web/package.json and apps/web/CHANGELOG.md. git diff shows the version going from 0.3.0 to 0.4.0, and verbump notes web prints the release notes: Added, Checkout page." src="https://raw.githubusercontent.com/TheKathan/verbump/main/assets/demo.gif" width="800"><br><sub>A PR from <code>feat/checkout</code> changed only <code>apps/web</code>: web gets a minor bump and its release notes, api stays at 1.4.0.</sub></p>
+
+## Try it in 60 seconds
+
+With verbump [installed](#quick-start), this builds the repo from the recording in a scratch folder and releases it:
+
+```bash
+verbump demo --dir verbump-try --setup-only && cd verbump-try
+verbump status                          # api and web, both tagged; web has changes
+verbump plan --branch feat/checkout     # web: 0.3.0 -> 0.4.0 (minor, tag web/v0.4.0)
+verbump apply --branch feat/checkout    # writes apps/web/package.json and CHANGELOG.md
+verbump notes web                       # the notes for the GitHub release
+```
+
+Or run `verbump demo` for a narrated replay in a temporary folder.
+
+## Why verbump
+
+- **Only what changed moves.** Each package is released from its own last tag, so a fix in one service doesn't bump the other nine.
+- **Release notes you already wrote.** The `Unreleased` notes become the version's section and the GitHub release body; with no notes, the commit subjects that touched the package.
+- **Any stack.** It reads and writes versions in `package.json`, `pyproject.toml`, `Cargo.toml`, `.csproj`, `pom.xml`, Gradle, Helm charts, Dockerfiles and more, or any file you give a pattern. Go-style tags work too.
+- **You choose the bump.** A flag, the PR's branch name, or [trunk-semver](https://github.com/TheKathan/trunk-semver)'s outputs. A `release/<package>/X.Y.Z` branch cuts an exact version.
+- **Safe to re-run.** Tags are created once and never moved; a second run finds nothing to release.
+- **Nothing to run.** Python 3.11+ and the standard library; no server, no plugins per language.
+
+## What it's for
+
+| Use | What you get |
+|---|---|
+| **A repo with several services or libraries** | Per-package versions, tags (`api/v1.5.0`) and changelogs, from one config. [Example](https://github.com/TheKathan/verbump/blob/main/examples/monorepo/verbump.toml) |
+| **A single package** | `tag_format = "v{version}"` and one package at `.`; verbump releases itself this way. [Its config](https://github.com/TheKathan/verbump/blob/main/verbump.toml) |
+| **GitHub Actions** | [verbump-action](https://github.com/TheKathan/verbump-action) bumps, commits, tags, pushes and publishes a GitHub release per package, on any stack. |
+| **Any other CI** | Four commands: `apply`, `check`, `tag`, `notes`. [Recipe](#using-it-in-ci) |
 
 ## Quick start
 
@@ -181,6 +216,7 @@ verbump [-C ROOT] [-c CONFIG] <command>
 | `set <package> <version> [--date D]` | Writes an exact version into one package's files and changelog. |
 | `check` | Prints each package's file version. Exits 1 if a package's version files disagree. |
 | `init` | Writes a starter `verbump.toml`. It won't overwrite an existing one. |
+| `demo [--dir D] [--setup-only]` | A narrated release in a throwaway repo with a Python and a Node package. `--dir` keeps the repo; `--setup-only` only builds it and prints its path. |
 
 Global options: `-C <repo root>` (default `.`) and `-c <config file>` (default `<root>/verbump.toml`).
 
@@ -242,20 +278,8 @@ This repo releases itself with [`.github/workflows/release.yml`](https://github.
 5. Build the sdist and the wheel.
 6. Upload them to PyPI, when the `PUBLISH_PYPI` variable is `true`.
 
-## Development
+## Contribute
 
-```bash
-make test    # unit tests and end-to-end tests against throwaway git repos
-make lint    # ruff
-```
+Bugs, questions and ideas go to [issues](https://github.com/TheKathan/verbump/issues), and pull requests are welcome: see [CONTRIBUTING](https://github.com/TheKathan/verbump/blob/main/CONTRIBUTING.md) and the [code of conduct](https://github.com/TheKathan/verbump/blob/main/CODE_OF_CONDUCT.md). Issues about the GitHub Action go to [verbump-action](https://github.com/TheKathan/verbump-action/issues). If verbump saves you a release chore, a star helps others find it.
 
-The branch name picks the release: `feature/...` or `feat/...` gives a minor version, anything else a patch, and `release/X.Y.Z` an exact version. Add notes under `## [Unreleased]` in [`CHANGELOG.md`](https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md).
-
-`main` takes changes only through PRs:
-- A PR needs a code-owner review, and the test and build checks must pass.
-- Only the release workflow pushes to `main` directly. It pushes the version commit and the `v*` tags with a deploy key, the only actor the rulesets let through.
-- Its environments, `release` and `pypi`, can be used only from `main`.
-
-## License
-
-[MIT](https://github.com/TheKathan/verbump/blob/main/LICENSE)
+[CHANGELOG](https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md) · [SECURITY](https://github.com/TheKathan/verbump/blob/main/SECURITY.md) · [Publishing](https://github.com/TheKathan/verbump/blob/main/docs/publishing.md) · [LICENSE](https://github.com/TheKathan/verbump/blob/main/LICENSE) (MIT)

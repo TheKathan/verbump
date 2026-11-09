@@ -4,6 +4,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+The first stable release. `verbump.toml`, the commands and flags, and the plan JSON are public contracts from here on: within 1.x they only gain keys, flags and fields.
+
+### Added
+- `verbump demo`: a narrated release in a throwaway repo with a Python and a Node package. `--dir` keeps the repo, and `--setup-only` only builds it, to try the commands by hand.
+- The README opens with a one-command try-out (`uvx --from verbump-cli verbump demo`), a recording of a release, and what verbump is for. The recording is rebuilt with `vhs assets/demo.tape`.
+- CONTRIBUTING, SECURITY, a code of conduct, issue templates for bugs and feature requests, and [docs/publishing.md](docs/publishing.md) for the PyPI setup.
+
+### Changed
+- `verbump status` sizes its columns to their contents.
+- The release workflow runs trunk-semver with `major-version: "1"`.
+
 ## [0.2.0] - 2026-11-09
 
 ### Added
