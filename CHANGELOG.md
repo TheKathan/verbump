@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Version files for more stacks, picked by file name: `composer.json`, `deno.json`, `jsr.json`, `manifest.json`, `setup.cfg`, `*.fsproj`, `*.vbproj`, `<VersionPrefix>`, `AssemblyInfo.cs`, `pom.xml` (the project version, not the parent's), `build.gradle`, `build.gradle.kts`, `gradle.properties`, `version.rb`, `*.gemspec`, `mix.exs`, `pubspec.yaml` and `Dockerfile` labels.
+- A file entry can name a `kind` (`json`, `toml`, `yaml`, `helm`, `plain`, `python`, `msbuild`, `assemblyinfo`, `maven`, `properties`, `gradle`, `ruby`, `elixir`, `dockerfile`) for any file name. It can also search only `after` a marker, and rewrite every match with `replace_all`. Kind `helm` moves `version` and `appVersion` together.
+- `tag_format` can use `{path}`, for Go-style module tags such as `services/billing/v1.2.3`.
+- A GitHub Action, `uses: TheKathan/verbump@v0`. It runs the whole release (trunk-semver, apply, commit, tags, GitHub releases) with its own Python, so a repo on any stack needs only a `verbump.toml`. Inputs: `bump`, `trunk-semver-major`, `config`, `working-directory`, `push`, `github-release`, `branch` and `github-token`. Outputs: `released`, `tags` and `plan`.
+
+### Changed
+- This repo's release workflow uses the action (`uses: ./`), and PRs run it as a dry run (`push: "false"`).
+
 ## [0.1.1] - 2026-11-09
 
 ### Changed

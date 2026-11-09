@@ -1,19 +1,34 @@
-# A monorepo with three services and a shared library.
-# Tags: api/v1.4.0, web/v0.3.0, worker/v2.1.0. Each service keeps its own CHANGELOG.md.
+# A monorepo with services on different stacks and a shared library.
+# Each service keeps its own CHANGELOG.md and is tagged <name>/vX.Y.Z.
 tag_format = "{name}/v{version}"
 changelog = "CHANGELOG.md"
 
-[packages.api]
+[packages.api]                     # Python
 path = "services/api"
 files = ["pyproject.toml", "src/api/__init__.py"]
-watch = ["libs/shared"]          # a change to the shared library releases api too
-exclude = ["*.md", "docs/*"]     # a docs-only change doesn't
+watch = ["libs/shared"]            # a change to the shared library releases api too
+exclude = ["*.md", "docs/*"]       # a docs-only change doesn't
 
-[packages.web]
+[packages.web]                     # Node
 path = "apps/web"
 files = ["package.json"]
 
-[packages.worker]
+[packages.worker]                  # .NET, plus the image tag in its Helm values
 path = "services/worker"
-files = ["Worker.csproj", { path = "deploy/values.yaml", pattern = 'imageTag:\s*"(?P<version>\d+\.\d+\.\d+)"' }]
+files = [
+  "Worker.csproj",
+  { path = "deploy/values.yaml", pattern = 'tag:\s*"(?P<version>\d+\.\d+\.\d+)"', after = "image:" },
+]
 watch = ["libs/shared"]
+
+[packages.ledger]                  # Java (Maven), the project version and not the parent's
+path = "services/ledger"
+files = ["pom.xml"]
+
+[packages.billing]                 # Go: no version file, Go-style tags services/billing/v1.2.3
+path = "services/billing"
+tag_format = "{path}/v{version}"
+
+[packages.platform-chart]          # a Helm chart: version and appVersion move together
+path = "charts/platform"
+files = [{ path = "Chart.yaml", kind = "helm" }]

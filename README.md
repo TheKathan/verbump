@@ -4,7 +4,7 @@ Version and changelog bumps for repos.
 
 A repo holds one package or several, each with its own version. You tell verbump *how much* to bump, with a flag, a branch name, or the outputs of a tool such as [trunk-semver](https://github.com/TheKathan/trunk-semver). verbump works out *what* to bump: the packages whose folders changed since each package's own last tag. For each one it writes the new version into its files, turns its changelog's "Unreleased" notes into a release section, and plans a `<package>/vX.Y.Z` tag and a GitHub release. Packages that didn't change stay where they are.
 
-Python 3.11+, standard library only.
+It works with any stack: it reads and writes the version in Node, Python, Rust, Go, .NET, Java, Ruby, PHP, Elixir, Dart, Helm and Docker files, or in any file you give a pattern. In GitHub Actions it runs as `uses: TheKathan/verbump@v0` and brings its own Python, so the repo needs no Python setup. The CLI itself needs Python 3.11+ and nothing else.
 
 ## How it works
 
@@ -45,22 +45,44 @@ path = "apps/web"
 files = ["package.json"]
 ```
 
-Files are relative to the package `path`. These files are recognised by name:
+Files are relative to the package `path`. verbump picks the kind of file from its name:
 
-| File | Matches |
-|---|---|
-| `pyproject.toml`, `Cargo.toml` | `version = "X.Y.Z"` |
-| `package.json` | `"version": "X.Y.Z"` |
-| `Chart.yaml` | `version: X.Y.Z` |
-| `VERSION` | the whole file |
-| `*.py` | `__version__ = "X.Y.Z"` |
-| `*.csproj`, `*.props` | `<Version>X.Y.Z</Version>` |
+| Stack | Files | Matches |
+|---|---|---|
+| Node, PHP, Deno | `package.json`, `composer.json`, `deno.json`, `jsr.json`, `manifest.json` | `"version": "X.Y.Z"` |
+| Python | `pyproject.toml`, `setup.cfg`, `*.py` | `version = "X.Y.Z"`, `version = X.Y.Z`, `__version__ = "X.Y.Z"` |
+| Rust | `Cargo.toml` | `version = "X.Y.Z"` at the start of a line |
+| .NET | `*.csproj`, `*.fsproj`, `*.vbproj`, `*.props` | `<Version>` or `<VersionPrefix>` |
+| .NET | `AssemblyInfo.cs` | every `Assembly[File\|Informational]Version("X.Y.Z…")` |
+| Java, Kotlin | `pom.xml` | the project's `<version>`, after `</parent>` when there is one |
+| Java, Kotlin | `build.gradle`, `build.gradle.kts`, `gradle.properties` | `version = "X.Y.Z"`, `version 'X.Y.Z'`, `version=X.Y.Z` |
+| Ruby | `version.rb`, `*.gemspec` | `VERSION = "X.Y.Z"`, `.version = "X.Y.Z"` |
+| Elixir | `mix.exs` | `version: "X.Y.Z"` |
+| Dart, Flutter | `pubspec.yaml` | `version: X.Y.Z` (a `+build` suffix is kept) |
+| Helm | `Chart.yaml` | `version: X.Y.Z` (kind `helm` also moves `appVersion`) |
+| Docker | `Dockerfile` | `LABEL … version="X.Y.Z"` |
+| Any | `VERSION`, `VERSION.txt`, `version.txt`, `.version` | the whole file |
+| Go, Swift, … | no file | the version lives only in the tags; use `tag_format = "{path}/v{version}"` for Go modules |
 
-Any other file takes a regex with a `version` group, for example `{ path = "deploy/values.yaml", pattern = 'imageTag:\s*"(?P<version>\d+\.\d+\.\d+)"' }`. Only the first match is rewritten.
+A file can also be a table:
+
+```toml
+files = [
+  { path = "chart/Chart.yaml", kind = "helm" },                  # a kind for any file name
+  { path = "deploy/values.yaml",                                  # or your own pattern
+    pattern = 'tag:\s*"(?P<version>\d+\.\d+\.\d+)"',
+    after = "image:",                                             # search only after this text
+    replace_all = true },                                         # rewrite every match, not just the first
+]
+```
+
+The kinds are `json`, `toml`, `yaml`, `helm`, `plain`, `python`, `msbuild`, `assemblyinfo`, `maven`, `properties`, `gradle`, `ruby`, `elixir` and `dockerfile`. A `pattern` needs a `version` group. Unless `replace_all` is set, only the first match is rewritten. When there are several matches, the first is read.
+
+`tag_format` can use `{name}`, `{path}` and `{version}`.
 
 Other keys, per package or at the top level: `major_tag = true` also moves a `<name>/vX` tag, which is useful for GitHub Actions published from a monorepo. `commit_message` (top level) defaults to `"chore(release): {releases}"`.
 
-For a single-package repo, use `tag_format = "v{version}"` and one package at `path = "."`. This repo's own [`verbump.toml`](verbump.toml) is an example of that, and [`examples/monorepo/verbump.toml`](examples/monorepo/verbump.toml) is a monorepo example.
+For a single-package repo, use `tag_format = "v{version}"` and one package at `path = "."`. This repo's own [`verbump.toml`](verbump.toml) is an example of that, and [`examples/monorepo/verbump.toml`](examples/monorepo/verbump.toml) is a monorepo with Python, Node, .NET, Maven, Go and Helm packages.
 
 ## Commands
 
@@ -92,28 +114,68 @@ The plan JSON has the shape `{"bump", "commit_message", "releases": [{"name", "p
 
 ## Use it in a workflow
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) is the whole pipeline, and this repo releases itself with it. It runs in this order:
-1. Run the tests, skipping the bot's own `chore(release)` commit.
-2. Find the merged PR's source branch.
-3. Run trunk-semver against a local mirror, so its repo-wide `vX.Y.Z` tag never reaches GitHub. Only the bump it computes is used.
-4. Run `verbump apply` with trunk-semver's `previous-version` and `version` and the source branch, then `verbump check`.
-5. Commit, then `verbump tag`, and push the commit and tags. The job refuses to overwrite an existing tag on GitHub.
-6. Run `gh release create` for each package, with `verbump notes` as the body.
-
-To use it in another repo, copy the workflow and add a `verbump.toml`. Then replace the `env` block, which runs verbump from this repo's source, with an install step. This repo is private, so the install needs a token with read access to it:
+Add a `verbump.toml` and this workflow. Nothing else depends on the repo's stack.
 
 ```yaml
-env:
-  VERBUMP: verbump
+name: release
 
-# in the release job, after setup-python:
-      - name: Install verbump
-        run: python3 -m pip install "git+https://x-access-token:${{ secrets.VERBUMP_READ_TOKEN }}@github.com/TheKathan/verbump@v0"
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # the bot's own version commit must not release again
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: verbump
+        uses: TheKathan/verbump@v0
+      # later steps can build and publish what was released:
+      # if: steps.verbump.outputs.released == 'true', with fromJSON(steps.verbump.outputs.tags)
 ```
 
-`@v0` follows the latest 0.x release. To pin one, use `@v0.1.0`.
+The action takes these steps:
+1. Find the merged PR's source branch.
+2. Run trunk-semver against a local mirror, so its repo-wide `vX.Y.Z` tag never reaches the remote. Only the bump it computes is used.
+3. Run `verbump apply` and `verbump check`.
+4. Commit, tag and push, refusing to overwrite an existing tag on the remote.
+5. Publish a GitHub release per package, with `verbump notes` as the body.
 
-If `main` has a ruleset that requires PRs, add a write deploy key as the `RELEASE_DEPLOY_KEY` secret and let only that key bypass the ruleset, as baton does. Without the secret, the job's token pushes.
+| Input | Default | |
+|---|---|---|
+| `bump` | `""` | `major`, `minor` or `patch`. Empty: trunk-semver picks it from the PR's branch name. |
+| `trunk-semver-major` | `"0"` | trunk-semver's `major-version`. Only its step is used, so this never caps a package's version. |
+| `config` | `verbump.toml` | relative to `working-directory` |
+| `working-directory` | `.` | the repo root |
+| `push` | `"true"` | `"false"` writes the files and the plan only (a dry run) |
+| `github-release` | `"true"` | publish a GitHub release per package |
+| `branch` | `main` | where the release commit is pushed |
+| `github-token` | `github.token` | for the PR lookup and the releases |
+
+| Output | |
+|---|---|
+| `released` | `true` when at least one package was released |
+| `tags` | JSON array of the tags created |
+| `plan` | path to the plan JSON |
+
+The action runs on Linux and macOS runners. It installs its own Python with `update-environment: false`, so the job's Python, Node or .NET setup is left alone.
+
+`@v0` follows the latest 0.x release; to pin one, use `@v0.2.0`. This repo is private, so other repos can use the action only while **Settings → Actions → General → Access** allows repositories owned by TheKathan.
+
+If `main` has a ruleset that requires PRs, give `actions/checkout` a write deploy key (`ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}`) and let only that key bypass the ruleset, as baton does. Without a key, the job's token pushes.
+
+Without GitHub Actions, the CLI does the same work: `verbump apply --branch "$BRANCH" --plan-out plan.json`, commit, `verbump tag --plan plan.json`, push.
 
 ## Develop
 

@@ -24,3 +24,21 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: make test
       - run: pipx run ruff check src tests
+
+  action:
+    # the action end to end, without pushing: plan, write the files, check them
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: verbump
+        uses: ./
+        with:
+          bump: patch
+          push: "false"
+      - run: |
+          echo "released=${{ steps.verbump.outputs.released }} tags=${{ steps.verbump.outputs.tags }}"
+          jq . "${{ steps.verbump.outputs.plan }}"
+          git status --short
