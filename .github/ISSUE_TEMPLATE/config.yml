@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/TheKathan/verbump/security/advisories/new
+    about: Report it privately, not in a public issue.
+  - name: Read the documentation
+    url: https://github.com/TheKathan/verbump#readme
+    about: Configuration, supported files, commands and CI recipes.
+  - name: A problem with the GitHub Action
+    url: https://github.com/TheKathan/verbump-action/issues/new/choose
+    about: Issues about TheKathan/verbump-action go to its own repository.

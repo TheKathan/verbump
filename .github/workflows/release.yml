@@ -89,9 +89,9 @@ jobs:
         id: semver
         uses: TheKathan/trunk-semver@bdfa679941c534feeb98f967803cff48cdc3455e # v1.0.14
         with:
-          # v0 while in development. verbump uses only the step from previous-version to version,
-          # so this never caps a package's own version; release/<package>/1.0.0 cuts a 1.0.0.
-          major-version: "0"
+          # verbump uses only the step from previous-version to version, so this never caps a
+          # package's own version. Raise it with each new major (cut by a release/X.0.0 branch).
+          major-version: "1"
 
       # --prune-tags also drops the vX.Y.Z (and vX) that trunk-semver created locally.
       - name: Point origin back at GitHub

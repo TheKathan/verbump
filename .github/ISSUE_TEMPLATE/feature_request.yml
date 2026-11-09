@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a change to how verbump works, or a version file it should understand.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you ran into. A real repo layout or file helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like verbump to do
+      description: verbump stays stack-agnostic and never runs a stack's own tooling, so describe the file or the behaviour rather than an integration with one tool.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: A sample file
+      description: For a new file type, a short realistic example with the version in it.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
