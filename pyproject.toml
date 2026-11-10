@@ -25,7 +25,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Action = "https://github.com/TheKathan/verbump-action"
+"Action: release" = "https://github.com/TheKathan/verbump-release"
+"Action: check" = "https://github.com/TheKathan/verbump-check"
+"Action: setup" = "https://github.com/TheKathan/setup-verbump"
 Source = "https://github.com/TheKathan/verbump"
 Changelog = "https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md"
 
