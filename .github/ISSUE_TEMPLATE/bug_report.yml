@@ -53,7 +53,7 @@ body:
       label: How you ran it
       options:
         - verbump command
-        - GitHub Action (TheKathan/verbump-action)
+        - GitHub Action (verbump-release, verbump-check or setup-verbump)
         - Other CI
     validations:
       required: true

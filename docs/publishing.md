@@ -53,4 +53,4 @@ To stop publishing, set the variable to `false` or delete it. A release made bef
 - the release run shows `build` and `pypi` as green (not skipped);
 - `https://pypi.org/project/verbump-cli/` shows the new version and *Verified details* for the repository;
 - from a clean shell, `uvx --from verbump-cli verbump --version` prints `verbump <version>`;
-- [verbump-action](https://github.com/TheKathan/verbump-action)'s dry runs stop being skipped, since they install the package from PyPI.
+- [setup-verbump](https://github.com/TheKathan/setup-verbump)'s tests install the new version (its `1` and `verbump-cli>=1,<2` cases pick up any new 1.x).

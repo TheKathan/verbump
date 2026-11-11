@@ -45,7 +45,7 @@ Or run `verbump demo` for a narrated replay in a temporary folder.
 |---|---|
 | **A repo with several services or libraries** | Per-package versions, tags (`api/v1.5.0`) and changelogs, from one config. [Example](https://github.com/TheKathan/verbump/blob/main/examples/monorepo/verbump.toml) |
 | **A single package** | `tag_format = "v{version}"` and one package at `.`; verbump releases itself this way. [Its config](https://github.com/TheKathan/verbump/blob/main/verbump.toml) |
-| **GitHub Actions** | [verbump-action](https://github.com/TheKathan/verbump-action) bumps, commits, tags, pushes and publishes a GitHub release per package, on any stack. |
+| **GitHub Actions** | [verbump-release](https://github.com/TheKathan/verbump-release) releases on merge: bumps, commits, tags, pushes and publishes a GitHub release per package. [verbump-check](https://github.com/TheKathan/verbump-check) previews a PR's release and fails early. [setup-verbump](https://github.com/TheKathan/setup-verbump) just installs the CLI. |
 | **Any other CI** | Four commands: `apply`, `check`, `tag`, `notes`. [Recipe](#using-it-in-ci) |
 
 ## Quick start
@@ -249,13 +249,23 @@ The plan JSON has the shape `{"bump", "commit_message", "releases": [{"name", "p
 
 ## Using it in CI
 
-In GitHub Actions, use [TheKathan/verbump-action](https://github.com/TheKathan/verbump-action). It installs `verbump-cli` from PyPI, then:
+In GitHub Actions there are three actions, each in its own repo:
 
-1. applies the bump;
-2. commits, tags and pushes;
-3. publishes a GitHub release per package.
+| Action | Use it to |
+|---|---|
+| [`TheKathan/verbump-release@v1`](https://github.com/TheKathan/verbump-release) | release on merge: apply the bump, commit, tag, push, and publish a GitHub release per package |
+| [`TheKathan/verbump-check@v1`](https://github.com/TheKathan/verbump-check) | preview on a PR what merging it will release, with the release notes, and fail early if that release would fail |
+| [`TheKathan/setup-verbump@v1`](https://github.com/TheKathan/setup-verbump) | put `verbump` on the PATH for your own steps, without touching the job's Python |
 
-It takes the bump as an input, from any source (trunk-semver, a branch name or a fixed value). It doesn't run trunk-semver itself.
+```yaml
+# on push to main
+- uses: actions/checkout@v7
+  with:
+    fetch-depth: 0
+- uses: TheKathan/verbump-release@v1
+```
+
+The release action takes the bump as an input from any source: trunk-semver's outputs, the merged PR's branch name (the default), or a fixed value. It doesn't run trunk-semver itself.
 
 Anywhere else, the CLI does the same work. This recipe takes the bump from the merged PR's branch name:
 
@@ -280,6 +290,6 @@ This repo releases itself with [`.github/workflows/release.yml`](https://github.
 
 ## Contribute
 
-Bugs, questions and ideas go to [issues](https://github.com/TheKathan/verbump/issues), and pull requests are welcome: see [CONTRIBUTING](https://github.com/TheKathan/verbump/blob/main/CONTRIBUTING.md) and the [code of conduct](https://github.com/TheKathan/verbump/blob/main/CODE_OF_CONDUCT.md). Issues about the GitHub Action go to [verbump-action](https://github.com/TheKathan/verbump-action/issues). If verbump saves you a release chore, a star helps others find it.
+Bugs, questions and ideas go to [issues](https://github.com/TheKathan/verbump/issues), and pull requests are welcome: see [CONTRIBUTING](https://github.com/TheKathan/verbump/blob/main/CONTRIBUTING.md) and the [code of conduct](https://github.com/TheKathan/verbump/blob/main/CODE_OF_CONDUCT.md). Issues about one of the GitHub Actions go to its repo: [verbump-release](https://github.com/TheKathan/verbump-release/issues), [verbump-check](https://github.com/TheKathan/verbump-check/issues) or [setup-verbump](https://github.com/TheKathan/setup-verbump/issues). If verbump saves you a release chore, a star helps others find it.
 
 [CHANGELOG](https://github.com/TheKathan/verbump/blob/main/CHANGELOG.md) · [SECURITY](https://github.com/TheKathan/verbump/blob/main/SECURITY.md) · [Publishing](https://github.com/TheKathan/verbump/blob/main/docs/publishing.md) · [LICENSE](https://github.com/TheKathan/verbump/blob/main/LICENSE) (MIT)

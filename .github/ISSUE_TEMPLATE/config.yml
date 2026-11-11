@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/TheKathan/verbump#readme
     about: Configuration, supported files, commands and CI recipes.
   - name: A problem with the GitHub Action
-    url: https://github.com/TheKathan/verbump-action/issues/new/choose
-    about: Issues about TheKathan/verbump-action go to its own repository.
+    url: https://github.com/TheKathan/verbump-release/issues/new
+    about: Issues about how the actions run (verbump-release, verbump-check, setup-verbump) go to their own repositories.

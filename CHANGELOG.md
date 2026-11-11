@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+- The GitHub Actions are three Marketplace actions, each in its own repo: [verbump-release](https://github.com/TheKathan/verbump-release) (release on merge), [verbump-check](https://github.com/TheKathan/verbump-check) (preview a PR's release and fail early) and [setup-verbump](https://github.com/TheKathan/setup-verbump) (install the CLI). They replace TheKathan/verbump-action, which is gone. The README, CONTRIBUTING, the issue templates and the package links point at them.
+
 ## [1.0.1] - 2026-11-09
 
 ### Fixed

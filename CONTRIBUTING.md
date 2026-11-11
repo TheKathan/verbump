@@ -6,7 +6,7 @@ Everyone taking part in verbump follows the [code of conduct](CODE_OF_CONDUCT.md
 - **Standard library only.** verbump must run anywhere Python 3.11+ runs, with nothing else installed. CI installs only the package itself.
 - **Stack-agnostic.** verbump reads and writes version files; it never runs a stack's own tooling (`npm`, `cargo`, `dotnet` …). A new file type is a `Kind` in `src/verbump/files.py`, with a realistic sample in `tests/test_files.py`.
 - **`verbump.toml` is a public contract.** Keys are only added within 1.x, never renamed or removed, and unknown keys stay an error so typos don't pass silently.
-- **The CLI and the plan JSON are public contracts too.** The action ([verbump-action](https://github.com/TheKathan/verbump-action)) and people's workflows call commands, flags and plan fields by name. Only add within 1.x; to rename something, keep the old spelling working for at least one minor version.
+- **The CLI and the plan JSON are public contracts too.** The actions ([verbump-release](https://github.com/TheKathan/verbump-release), [verbump-check](https://github.com/TheKathan/verbump-check), [setup-verbump](https://github.com/TheKathan/setup-verbump)) and people's workflows call commands, flags and plan fields by name. Only add within 1.x; to rename something, keep the old spelling working for at least one minor version.
 - **Never move an exact tag.** Anything that writes tags creates `<tag>` once; only major tags (`vX`) move.
 
 ## Development
