@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ startsWith(matrix.os, 'ubuntu') && 'coop-verbump' || matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -23,12 +23,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: make test
-      - run: pipx run ruff check src tests
+      - run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check ruff
+          python3 -m ruff check src tests
 
 
   build:
     # the package PyPI gets: build it, install the wheel, run the command
-    runs-on: ubuntu-latest
+    runs-on: coop-verbump
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
